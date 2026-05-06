@@ -3,11 +3,13 @@ import { Hero } from "@/components/hero";
 import { MotionPage } from "@/components/motion-page";
 import { getTrendingAnime } from "@/lib/anilist";
 import { getContinueWatching } from "@/lib/db/progress";
+import { getUserCount } from "@/lib/db/users";
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/jwt";
 import { Play, Clock } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +34,11 @@ function SectionHeading({ title, kanji, subtitle }: { title: string; kanji?: str
 }
 
 export default async function HomePage() {
+  // If no users exist at all, redirect to first-time setup
+  if (getUserCount() === 0) {
+    redirect("/setup");
+  }
+
   const trending = await getTrendingAnime();
   const [featured, ...rest] = trending;
 

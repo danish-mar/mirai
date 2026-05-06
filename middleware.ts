@@ -1,48 +1,34 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
+// Public paths that don't require authentication
+const PUBLIC_PATHS = ["/login", "/setup"];
+
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip middleware for API routes and static files
+  // Skip static files, API routes (they handle their own auth)
   if (
-    pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
+    pathname.startsWith("/api") ||
     pathname.includes(".")
   ) {
     return NextResponse.next();
   }
 
-  // Check if setup is needed
-  // We can't use better-sqlite3 in edge middleware, so we call our API
-  if (pathname !== "/setup") {
-    try {
-      const res = await fetch(new URL("/api/auth/setup", request.url));
-      const { data } = await res.json();
-      
-      if (data?.needsSetup) {
-        return NextResponse.redirect(new URL("/setup", request.url));
-      }
-    } catch (e) {
-      console.error("Middleware setup check failed", e);
-    }
-  } else {
-    // If on /setup, check if already setup
-    try {
-      const res = await fetch(new URL("/api/auth/setup", request.url));
-      const { data } = await res.json();
-      
-      if (!data?.needsSetup) {
-        return NextResponse.redirect(new URL("/", request.url));
-      }
-    } catch (e) {}
-  }
-
+  const isPublicPath = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
   const session = request.cookies.get("mirai_session")?.value;
 
-  // Protect all pages except /login and /setup
-  if (!session && pathname !== "/login" && pathname !== "/setup") {
-    return NextResponse.redirect(new URL("/login", request.url));
+  // Redirect unauthenticated users to login
+  if (!isPublicPath && !session) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("from", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Redirect already-authenticated users away from login/setup
+  if (isPublicPath && session && pathname !== "/setup") {
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   return NextResponse.next();
