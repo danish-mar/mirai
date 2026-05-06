@@ -52,3 +52,4 @@ jobs:
           generate_release_notes: true
           files: |
             docker-compose.yml
+            docker-compose.ghcr.yml

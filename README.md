@@ -94,6 +94,12 @@ Ready to launch Mirai locally? Follow these simple steps! (๑•̀ㅂ•́)و�
 5. **Open in Browser:**
    Visit `http://localhost:3000` to see Mirai in action! 🌸
 
+### 🐳 Docker Deployment
+You can use the included Docker files for a quick containerized deployment:
+
+- **Build from source:** `docker-compose up -d`
+- **Pull from GHCR (Recommended for Production):** `docker-compose -f docker-compose.ghcr.yml up -d`
+
 _(Note: Docker support is also available via the included `Dockerfile` and `docker-compose.yml` for quick containerized deployment!)_
 
 ---
