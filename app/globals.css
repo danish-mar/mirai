@@ -1,0 +1,330 @@
+@import "tailwindcss";
+
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Serif+JP:wght@300;400;700&display=swap");
+
+:root {
+  color-scheme: dark;
+
+  --background: #06060f;
+  --surface: #0d0d1a;
+  --surface-soft: #13132a;
+  --surface-glass: rgba(13, 13, 26, 0.6);
+
+  --accent: #8b5cf6;
+  --accent-glow: rgba(139, 92, 246, 0.35);
+  --accent-soft: rgba(139, 92, 246, 0.12);
+
+  --cyan: #22d3ee;
+  --cyan-glow: rgba(34, 211, 238, 0.25);
+
+  --pink: #f472b6;
+
+  --foreground: #f0f0ff;
+  --muted: #6b7280;
+  --border: rgba(139, 92, 246, 0.15);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-accent: var(--accent);
+  --color-cyan: var(--cyan);
+  --color-pink: var(--pink);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Noto Serif JP", ui-serif, serif;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  background: var(--background);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Ambient glow layers */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% -10%, rgba(139, 92, 246, 0.2) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 90%, rgba(34, 211, 238, 0.08) 0%, transparent 55%);
+}
+
+a { color: inherit; text-decoration: none; }
+button, input { font: inherit; }
+
+/* Thin scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.4); border-radius: 9999px; }
+
+/* Line clamps */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Scrollbar hide */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Animations ─────────────────────────────────────── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.06; }
+  50%       { transform: translateY(-18px) rotate(2deg); opacity: 0.12; }
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.04; }
+  50%       { transform: translateY(-12px) rotate(-2deg); opacity: 0.08; }
+}
+
+/* ─── Hero component classes ─────────────────────────── */
+.hero-violet-tint {
+  background: linear-gradient(to top, rgba(139, 92, 246, 0.08), transparent);
+}
+.hero-bottom-fade {
+  background: linear-gradient(to top, var(--background), transparent);
+}
+.hero-accent-glow {
+  color: var(--accent);
+  text-shadow: 0 0 16px var(--accent-glow);
+}
+.hero-accent-line {
+  background: linear-gradient(to right, var(--accent), transparent);
+}
+.hero-title-shadow {
+  text-shadow: 0 2px 40px rgba(0, 0, 0, 0.8);
+}
+
+.kanji-float {
+  animation: float 8s ease-in-out infinite;
+}
+.kanji-float-slow {
+  animation: float-slow 11s ease-in-out infinite 2s;
+}
+
+/* Score badge */
+.score-badge {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.35), rgba(34, 211, 238, 0.25));
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  color: #c4b5fd;
+  backdrop-filter: blur(8px);
+}
+
+/* Status badge */
+.status-badge {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Genre tags */
+.genre-tag {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  color: #a78bfa;
+}
+
+/* Primary CTA button */
+.btn-primary {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  box-shadow: 0 0 24px rgba(139, 92, 246, 0.4), 0 4px 24px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+.btn-primary:hover {
+  box-shadow: 0 0 40px rgba(139, 92, 246, 0.65), 0 8px 32px rgba(0, 0, 0, 0.5);
+  transform: translateY(-1px);
+}
+.btn-primary-hover-overlay {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+/* Ghost CTA button */
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  transition: background 0.25s ease, border-color 0.25s ease;
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+/* ─── AnimeCard classes ───────────────────────────────── */
+.anime-card-wrap {
+  background: var(--surface-soft);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.anime-card-wrap:hover {
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 32px rgba(139, 92, 246, 0.22);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.anime-card-overlay {
+  background: rgba(6, 6, 15, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+.play-icon-btn {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  box-shadow: 0 0 24px rgba(139, 92, 246, 0.6);
+}
+
+/* ─── Header classes ──────────────────────────────────── */
+.header-transparent {
+  background: linear-gradient(to bottom, rgba(6, 6, 15, 0.82), transparent);
+  backdrop-filter: none;
+  border-bottom: none;
+}
+
+.header-scrolled {
+  background: rgba(6, 6, 15, 0.92);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.4);
+}
+
+.header-kanji {
+  opacity: 0.75;
+}
+.group:hover .header-kanji {
+  opacity: 1;
+}
+
+.nav-link { position: relative; }
+.nav-link-active { color: white; }
+.nav-link-inactive { color: rgba(255, 255, 255, 0.52); }
+.nav-link-inactive:hover { color: white; }
+
+.nav-indicator {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.header-icon-btn {
+  color: rgba(255, 255, 255, 0.55);
+}
+.header-icon-btn:hover {
+  color: white;
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.header-avatar {
+  background: linear-gradient(135deg, #7c3aed, #22d3ee);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
+  cursor: pointer;
+}
+
+.header-login-btn {
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+.header-login-btn:hover {
+  background: rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.3);
+}
+
+/* ─── Section heading accent line ────────────────────── */
+.section-accent-line {
+  background: linear-gradient(to right, rgba(139, 92, 246, 0.35), rgba(34, 211, 238, 0.1), transparent);
+}
+.section-divider-line {
+  background: linear-gradient(to right, transparent, rgba(139, 92, 246, 0.2), rgba(34, 211, 238, 0.1), transparent);
+}
+.section-divider-kanji {
+  color: rgba(139, 92, 246, 0.4);
+  letter-spacing: 0.3em;
+}
+.section-heading-kanji {
+  color: rgba(139, 92, 246, 0.6);
+  letter-spacing: 0.1em;
+}
+.section-heading-subtitle {
+  color: rgba(255, 255, 255, 0.35);
+}
+.footer-text {
+  color: rgba(255, 255, 255, 0.18);
+}
+.episode-row {
+  background: rgba(13, 13, 26, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+.episode-row:hover {
+  background: rgba(139, 92, 246, 0.07);
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+.footer-glow-line {
+  background: linear-gradient(to right, transparent, rgba(139, 92, 246, 0.3), rgba(34, 211, 238, 0.2), transparent);
+}
+
+/* ─── Profile form inputs ─────────────────────────── */
+.profile-input {
+  background: rgba(13, 13, 26, 0.8);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.profile-input:focus {
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+/* ─── Watchlist button ───────────────────────────── */
+.watchlist-btn:hover {
+  border-color: rgba(139, 92, 246, 0.4) !important;
+  background: rgba(139, 92, 246, 0.15) !important;
+  color: white !important;
+}
+
+/* ─── Mobile responsive overrides ───────────────── */
+@media (max-width: 640px) {
+  .hero-title-shadow {
+    font-size: 2.5rem;
+    line-height: 1;
+  }
+  .btn-primary,
+  .btn-ghost {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    font-size: 0.8125rem;
+  }
+  .anime-card-wrap {
+    border-radius: 0.625rem;
+  }
+}
+
+/* ─── Search bar on mobile ───────────────────────── */
+@media (max-width: 640px) {
+  form input[type="text"] {
+    width: 100%;
+    border-radius: 0.75rem;
+  }
+}
