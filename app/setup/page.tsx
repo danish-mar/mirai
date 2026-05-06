@@ -1,6 +1,6 @@
 import { getUserCount } from "@/lib/db/users";
 import { redirect } from "next/navigation";
-import SetupForm from "./setup-form";
+import SetupForm from "@/app/setup/setup-form";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,6 @@ export const metadata = {
 };
 
 export default function SetupPage() {
-  // If setup is already done, send to home
   if (getUserCount() > 0) {
     redirect("/");
   }
