@@ -4,6 +4,7 @@ import { createToken } from "@/lib/auth/jwt";
 import { jsonError, jsonOk, errorMessage } from "@/lib/api/response";
 import { createUser, findUserByEmail } from "@/lib/db/users";
 import { registerSchema } from "@/lib/validators/auth";
+import { cookieSecure } from "@/lib/env";
 
 export const runtime = "nodejs";
 
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     response.cookies.set("mirai_session", token, {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: cookieSecure,
       path: "/",
       maxAge: 60 * 60 * 24 * 30
     });

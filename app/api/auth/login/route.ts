@@ -4,6 +4,7 @@ import { jsonOk, jsonError } from "@/lib/api/response";
 import { createToken } from "@/lib/auth/jwt";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import { cookieSecure } from "@/lib/env";
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies();
     cookieStore.set("mirai_session", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: cookieSecure,
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: "/",
