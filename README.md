@@ -95,12 +95,40 @@ Ready to launch Mirai locally? Follow these simple steps! (๑•̀ㅂ•́)و�
    Visit `http://localhost:3000` to see Mirai in action! 🌸
 
 ### 🐳 Docker Deployment
-You can use the included Docker files for a quick containerized deployment:
 
-- **Build from source:** `docker-compose up -d`
-- **Pull from GHCR (Recommended for Production):** `docker-compose -f docker-compose.ghcr.yml up -d`
+The fastest way to deploy Mirai is using Docker. You can either build it from source or pull the pre-built image from our GitHub Container Registry (GHCR).
 
-_(Note: Docker support is also available via the included `Dockerfile` and `docker-compose.yml` for quick containerized deployment!)_
+#### Using GHCR (Recommended)
+Create a `docker-compose.yml` file with the following content:
+
+```yaml
+services:
+  mirai:
+    image: ghcr.io/danish-mar/mirai:latest
+    container_name: mirai-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=/app/data/mirai.sqlite
+      - JWT_SECRET=your_secure_32_char_secret_here
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - HOST=0.0.0.0
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+```
+
+Then run:
+```bash
+docker-compose up -d
+```
+
+#### Build from Source
+If you have the repository cloned, you can build it locally:
+```bash
+docker-compose up -d --build
+```
 
 ---
 
