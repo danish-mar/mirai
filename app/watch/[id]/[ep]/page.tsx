@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, Play, ChevronRight } from "lucide-react";
+import { ChevronLeft, Play, ChevronRight, CheckCircle2 } from "lucide-react";
 import { MotionPage } from "@/components/motion-page";
 import { PlayerSection } from "./player-section";
 import { displayTitle, getAnimeById, stripHtml } from "@/lib/anilist";
@@ -9,7 +9,7 @@ import { streamParamsSchema } from "@/lib/validators/anime";
 
 import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/jwt";
-import { getEpisodeProgress } from "@/lib/db/progress";
+import { getEpisodeProgress, getAnimeProgress } from "@/lib/db/progress";
 
 export const dynamic = "force-dynamic";
 
@@ -19,15 +19,23 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
   const title = displayTitle(anime);
   const cover = anime.coverImage.extraLarge ?? anime.coverImage.large;
 
-  // ── Fetch user progress for history resumption ──
+  // ── Fetch user progress for history resumption and watched status ──
   let initialPosition = 0;
+  let watchedEpisodes = new Set<string>();
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("mirai_session")?.value;
     if (token) {
       const user = await verifyToken(token);
-      const progress = getEpisodeProgress(user.id, anime.id, parsed.ep);
-      if (progress) initialPosition = progress.positionSeconds;
+      
+      // Get progress for ALL episodes of this anime to show ticks in carousel
+      const allProgress = getAnimeProgress(user.id, anime.id);
+      for (const p of allProgress) {
+        if (p.isCompleted) watchedEpisodes.add(p.episode);
+      }
+
+      const currentProgress = allProgress.find(p => p.episode === parsed.ep);
+      if (currentProgress) initialPosition = currentProgress.positionSeconds;
     }
   } catch (e) {
     console.error("Failed to fetch user progress:", e);
@@ -167,6 +175,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
             <div className="flex gap-3 overflow-x-auto pb-6 pt-1 snap-x snap-mandatory">
               {sortedEpisodes.map((epStr) => {
                 const isActive = epStr === String(parsed.ep);
+                const isWatched = watchedEpisodes.has(epStr);
                 // Per-episode thumbnail from AniList, fallback to show cover
                 const epThumb = epThumbnailMap.get(epStr) ?? cover;
                 // Episode title from AniList streamingEpisodes if available
@@ -181,6 +190,8 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
                     style={{
                       border: isActive
                         ? "1px solid var(--accent)"
+                        : isWatched
+                        ? "1px solid rgba(52,211,153,0.3)"
                         : "1px solid rgba(255,255,255,0.06)",
                       boxShadow: isActive
                         ? "0 0 20px rgba(139,92,246,0.3)"
@@ -196,49 +207,63 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
                           fill
                           sizes="260px"
                           className="object-cover transition duration-300 group-hover:scale-105"
-                          style={{ opacity: isActive ? 0.5 : 0.75, filter: "saturate(1.1)" }}
+                          style={{ opacity: isActive ? 0.5 : isWatched ? 0.4 : 0.75, filter: "saturate(1.1)" }}
                         />
                       ) : null}
                       <div className="absolute inset-0 bg-gradient-to-t from-[#06060f]/90 via-transparent to-transparent" />
 
-                      {/* Play icon */}
+                      {/* Play/Check icon */}
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div
                           className="flex size-9 items-center justify-center rounded-full transition-all duration-200"
                           style={{
                             background: isActive
                               ? "linear-gradient(135deg, #7c3aed, #6d28d9)"
+                              : isWatched
+                              ? "rgba(52,211,153,0.2)"
                               : "rgba(255,255,255,0.12)",
                             backdropFilter: "blur(4px)",
                             boxShadow: isActive ? "0 0 16px rgba(139,92,246,0.5)" : "none",
+                            border: isWatched ? "1px solid rgba(52,211,153,0.3)" : "none",
                           }}
                         >
-                          <Play
-                            className="size-4 ml-0.5"
-                            style={{
-                              fill: isActive ? "white" : "rgba(255,255,255,0.8)",
-                              color: isActive ? "white" : "rgba(255,255,255,0.8)",
-                            }}
-                          />
+                          {isWatched && !isActive ? (
+                            <CheckCircle2 className="size-5 text-emerald-400" />
+                          ) : (
+                            <Play
+                              className="size-4 ml-0.5"
+                              style={{
+                                fill: isActive ? "white" : "rgba(255,255,255,0.8)",
+                                color: isActive ? "white" : "rgba(255,255,255,0.8)",
+                              }}
+                            />
+                          )}
                         </div>
                       </div>
 
-                      {/* Now playing badge */}
-                      {isActive && (
+                      {/* Badges */}
+                      {isActive ? (
                         <div
                           className="absolute top-2 right-2 rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white"
                           style={{ background: "var(--accent)", boxShadow: "0 0 8px rgba(139,92,246,0.5)" }}
                         >
                           Playing
                         </div>
-                      )}
+                      ) : isWatched ? (
+                        <div
+                          className="absolute top-2 right-2 rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400"
+                          style={{ background: "rgba(6,6,15,0.6)", border: "1px solid rgba(52,211,153,0.3)" }}
+                        >
+                          Watched
+                        </div>
+                      ) : null}
                     </div>
 
                     {/* Label */}
                     <div className="p-3">
                       <p
                         className="text-xs font-bold"
-                        style={{ color: isActive ? "var(--accent)" : "rgba(255,255,255,0.7)" }}
+                        style={{ color: isActive ? "var(--accent)" : isWatched ? "#10b981" : "rgba(255,255,255,0.7)" }}
                       >
                         Episode {epStr}
                       </p>

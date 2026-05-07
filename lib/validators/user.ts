@@ -6,7 +6,8 @@ export const saveProgressSchema = z.object({
   animeTitle: z.string().optional(),
   coverImage: z.string().nullable().optional(),
   positionSeconds: z.number().finite().nonnegative(),
-  durationSeconds: z.number().finite().nonnegative()
+  durationSeconds: z.number().finite().nonnegative(),
+  isCompleted: z.boolean().optional()
 });
 
 export const progressParamsSchema = z.object({

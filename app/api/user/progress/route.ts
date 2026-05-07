@@ -17,6 +17,7 @@ export const POST = withAuth(async (request: NextRequest, context) => {
       coverImage: input.coverImage,
       positionSeconds: input.positionSeconds,
       durationSeconds: input.durationSeconds,
+      isCompleted: input.isCompleted,
     });
     return jsonOk({ progress });
   } catch (error: unknown) {

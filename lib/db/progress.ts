@@ -8,6 +8,7 @@ export type WatchProgress = {
   coverImage: string | null;
   positionSeconds: number;
   durationSeconds: number;
+  isCompleted: boolean;
   updatedAt: string;
   percentComplete: number;
 };
@@ -20,6 +21,7 @@ type WatchProgressRow = {
   cover_image: string | null;
   position_seconds: number;
   duration_seconds: number;
+  is_completed: number;
   updated_at: string;
 };
 
@@ -35,10 +37,13 @@ function mapProgress(row: WatchProgressRow): WatchProgress {
     coverImage: row.cover_image ?? null,
     positionSeconds: row.position_seconds,
     durationSeconds: row.duration_seconds,
+    isCompleted: row.is_completed === 1,
     updatedAt: row.updated_at,
     percentComplete: pct,
   };
 }
+
+const SELECT_COLS = "user_id, anime_id, episode, anime_title, cover_image, position_seconds, duration_seconds, is_completed, updated_at";
 
 export function saveProgress(input: {
   userId: number;
@@ -48,28 +53,31 @@ export function saveProgress(input: {
   coverImage?: string | null;
   positionSeconds: number;
   durationSeconds: number;
+  isCompleted?: boolean;
 }): WatchProgress {
   db()
     .prepare(
-      `INSERT INTO watch_progress (user_id, anime_id, episode, anime_title, cover_image, position_seconds, duration_seconds, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `INSERT INTO watch_progress (user_id, anime_id, episode, anime_title, cover_image, position_seconds, duration_seconds, is_completed, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
        ON CONFLICT(user_id, anime_id, episode)
        DO UPDATE SET
          anime_title = COALESCE(excluded.anime_title, anime_title),
          cover_image = COALESCE(excluded.cover_image, cover_image),
          position_seconds = excluded.position_seconds,
          duration_seconds = excluded.duration_seconds,
+         is_completed = COALESCE(excluded.is_completed, is_completed),
          updated_at = CURRENT_TIMESTAMP`
     )
     .run(
       input.userId, input.animeId, String(input.episode),
       input.animeTitle ?? "", input.coverImage ?? null,
-      input.positionSeconds, input.durationSeconds
+      input.positionSeconds, input.durationSeconds,
+      input.isCompleted ? 1 : 0
     );
 
   const row = db()
     .prepare(
-      `SELECT user_id, anime_id, episode, anime_title, cover_image, position_seconds, duration_seconds, updated_at
+      `SELECT ${SELECT_COLS}
        FROM watch_progress WHERE user_id = ? AND anime_id = ? AND episode = ?`
     )
     .get(input.userId, input.animeId, String(input.episode)) as WatchProgressRow | undefined;
@@ -78,10 +86,21 @@ export function saveProgress(input: {
   return mapProgress(row);
 }
 
+export function markEpisodeCompleted(userId: number, animeId: number, episode: string, completed: boolean = true) {
+  db()
+    .prepare(
+      `INSERT INTO watch_progress (user_id, anime_id, episode, is_completed, updated_at)
+       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_id, anime_id, episode)
+       DO UPDATE SET is_completed = ?, updated_at = CURRENT_TIMESTAMP`
+    )
+    .run(userId, animeId, String(episode), completed ? 1 : 0, completed ? 1 : 0);
+}
+
 export function getAnimeProgress(userId: number, animeId: number): WatchProgress[] {
   const rows = db()
     .prepare(
-      `SELECT user_id, anime_id, episode, anime_title, cover_image, position_seconds, duration_seconds, updated_at
+      `SELECT ${SELECT_COLS}
        FROM watch_progress WHERE user_id = ? AND anime_id = ? ORDER BY updated_at DESC`
     )
     .all(userId, animeId) as WatchProgressRow[];
@@ -92,7 +111,7 @@ export function getAnimeProgress(userId: number, animeId: number): WatchProgress
 export function getContinueWatching(userId: number, limit = 10): WatchProgress[] {
   const rows = db()
     .prepare(
-      `SELECT user_id, anime_id, episode, anime_title, cover_image, position_seconds, duration_seconds, updated_at
+      `SELECT ${SELECT_COLS}
        FROM watch_progress
        WHERE user_id = ?
        GROUP BY anime_id
@@ -108,7 +127,7 @@ export function getContinueWatching(userId: number, limit = 10): WatchProgress[]
 export function getWatchHistory(userId: number, limit = 50): WatchProgress[] {
   const rows = db()
     .prepare(
-      `SELECT user_id, anime_id, episode, anime_title, cover_image, position_seconds, duration_seconds, updated_at
+      `SELECT ${SELECT_COLS}
        FROM watch_progress
        WHERE user_id = ?
        GROUP BY anime_id
@@ -123,7 +142,7 @@ export function getWatchHistory(userId: number, limit = 50): WatchProgress[] {
 export function getEpisodeProgress(userId: number, animeId: number, episode: string): WatchProgress | null {
   const row = db()
     .prepare(
-      `SELECT user_id, anime_id, episode, anime_title, cover_image, position_seconds, duration_seconds, updated_at
+      `SELECT ${SELECT_COLS}
        FROM watch_progress WHERE user_id = ? AND anime_id = ? AND episode = ?`
     )
     .get(userId, animeId, String(episode)) as WatchProgressRow | undefined;

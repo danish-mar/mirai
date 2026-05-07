@@ -41,7 +41,7 @@ export async function GET(
     const mode = (url.searchParams.get("mode") ?? "sub") as "sub" | "dub" | "raw";
     const refresh = url.searchParams.get("refresh") === "true";
 
-    const animeId = parseInt(params.id);
+    const animeId = params.id;
 
     // 1. Check cache first (unless refresh requested)
     if (!refresh) {

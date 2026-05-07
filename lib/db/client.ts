@@ -39,6 +39,7 @@ function migrate(db: DatabaseInstance): void {
       cover_image TEXT,
       position_seconds REAL NOT NULL DEFAULT 0,
       duration_seconds REAL NOT NULL DEFAULT 0,
+      is_completed INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (user_id, anime_id, episode),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -95,34 +96,41 @@ function migrate(db: DatabaseInstance): void {
           cover_image TEXT,
           position_seconds REAL NOT NULL DEFAULT 0,
           duration_seconds REAL NOT NULL DEFAULT 0,
+          is_completed INTEGER NOT NULL DEFAULT 0,
           updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
           PRIMARY KEY (user_id, anime_id, episode),
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
-        INSERT INTO watch_progress (user_id, anime_id, episode, position_seconds, duration_seconds, updated_at)
-          SELECT user_id, anime_id, CAST(episode AS TEXT), position_seconds, duration_seconds, updated_at
+        INSERT INTO watch_progress (user_id, anime_id, episode, anime_title, cover_image, position_seconds, duration_seconds, is_completed, updated_at)
+          SELECT user_id, anime_id, CAST(episode AS TEXT), anime_title, cover_image, position_seconds, duration_seconds, is_completed, updated_at
           FROM watch_progress_old;
         DROP TABLE watch_progress_old;
         CREATE INDEX IF NOT EXISTS idx_watch_progress_user_updated ON watch_progress(user_id, updated_at DESC);
         CREATE INDEX IF NOT EXISTS idx_watch_progress_user_anime ON watch_progress(user_id, anime_id);
       `);
     }
+
+    // Refresh cols after potential recreation
+    const currentCols = db.pragma("table_info(watch_progress)") as { name: string }[];
+    
     // Add avatar_url column if missing
-    if (!cols.find(c => c.name === "avatar_url")) {
-      const userCols = db.pragma("table_info(users)") as { name: string }[];
-      if (!userCols.find(c => c.name === "avatar_url")) {
-        db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT");
-      }
+    const userCols = db.pragma("table_info(users)") as { name: string }[];
+    if (!userCols.find(c => c.name === "avatar_url")) {
+      db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT");
     }
-    // Add anime_title / cover_image columns if missing
-    if (!cols.find(c => c.name === "anime_title")) {
+
+    // Add anime_title / cover_image / is_completed columns if missing
+    if (!currentCols.find(c => c.name === "anime_title")) {
       db.exec("ALTER TABLE watch_progress ADD COLUMN anime_title TEXT NOT NULL DEFAULT ''");
     }
-    if (!cols.find(c => c.name === "cover_image")) {
+    if (!currentCols.find(c => c.name === "cover_image")) {
       db.exec("ALTER TABLE watch_progress ADD COLUMN cover_image TEXT");
     }
-  } catch {
-    // Migration errors are non-fatal
+    if (!currentCols.find(c => c.name === "is_completed")) {
+      db.exec("ALTER TABLE watch_progress ADD COLUMN is_completed INTEGER NOT NULL DEFAULT 0");
+    }
+  } catch (e) {
+    console.error("Migration error:", e);
   }
 }
 
