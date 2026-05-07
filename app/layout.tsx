@@ -18,20 +18,25 @@ export const metadata: Metadata = {
   description: "Self-hosted anime streaming platform"
 };
 
+import { findUserById } from "@/lib/db/users";
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const cookieStore = await cookies();
   const token = cookieStore.get("mirai_session")?.value;
+
   let user = null;
+  let userRecord = null;
 
   if (token) {
     try {
       user = await verifyToken(token);
+      userRecord = findUserById(user.id);
     } catch {}
   }
   return (
     <html lang="en">
       <body className={`${geist.variable} font-sans antialiased`}>
-        <Header user={user} />
+        <Header user={user} avatarUrl={userRecord?.avatarUrl} />
         <main>{children}</main>
       </body>
     </html>

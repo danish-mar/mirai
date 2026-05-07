@@ -120,6 +120,16 @@ export function getWatchHistory(userId: number, limit = 50): WatchProgress[] {
   return rows.map(mapProgress);
 }
 
+export function getEpisodeProgress(userId: number, animeId: number, episode: string): WatchProgress | null {
+  const row = db()
+    .prepare(
+      `SELECT user_id, anime_id, episode, anime_title, cover_image, position_seconds, duration_seconds, updated_at
+       FROM watch_progress WHERE user_id = ? AND anime_id = ? AND episode = ?`
+    )
+    .get(userId, animeId, String(episode)) as WatchProgressRow | undefined;
+  return row ? mapProgress(row) : null;
+}
+
 export function getTotalProgressCount(): number {
   const row = db().prepare("SELECT COUNT(*) as count FROM watch_progress").get() as { count: number };
   return row.count;

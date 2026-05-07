@@ -2,10 +2,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { ChevronLeft, Play, ChevronRight } from "lucide-react";
 import { MotionPage } from "@/components/motion-page";
-import { WatchPlayer } from "@/components/watch-player";
+import { PlayerSection } from "./player-section";
 import { displayTitle, getAnimeById, stripHtml } from "@/lib/anilist";
 import { searchAnime, getEpisodesList, findBestMatch } from "@/lib/allanime";
 import { streamParamsSchema } from "@/lib/validators/anime";
+
+import { cookies } from "next/headers";
+import { verifyToken } from "@/lib/auth/jwt";
+import { getEpisodeProgress } from "@/lib/db/progress";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +18,20 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
   const anime = await getAnimeById(parsed.id);
   const title = displayTitle(anime);
   const cover = anime.coverImage.extraLarge ?? anime.coverImage.large;
+
+  // ── Fetch user progress for history resumption ──
+  let initialPosition = 0;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("mirai_session")?.value;
+    if (token) {
+      const user = await verifyToken(token);
+      const progress = getEpisodeProgress(user.id, anime.id, parsed.ep);
+      if (progress) initialPosition = progress.positionSeconds;
+    }
+  } catch (e) {
+    console.error("Failed to fetch user progress:", e);
+  }
 
   // Resolve available episodes from AllAnime using shared findBestMatch helper
   let sortedEpisodes: string[] = [];
@@ -37,21 +55,33 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
   const prevEp = currentIndex > 0 ? sortedEpisodes[currentIndex - 1] : null;
   const nextEp = currentIndex < sortedEpisodes.length - 1 ? sortedEpisodes[currentIndex + 1] : null;
 
+  const nextEpisodeUrl = nextEp ? `/watch/${anime.id}/${nextEp}` : null;
+
+  // ── Build per-episode thumbnail map from AniList streamingEpisodes ──
+  // AniList returns these from licensed sources (e.g. Crunchyroll), may be empty.
+  // Format: "Episode 1 - Title" or just "Episode 1"
+  const epThumbnailMap = new Map<string, string>();
+  for (const se of anime.streamingEpisodes ?? []) {
+    if (!se.thumbnail) continue;
+    // Extract episode number from title e.g. "Episode 12 - ..." → "12"
+    const match = se.title?.match(/episode\s+(\d+(?:\.\d+)?)/i);
+    if (match) epThumbnailMap.set(match[1], se.thumbnail);
+  }
+
   return (
     <MotionPage>
       <div className="min-h-screen pt-16" style={{ background: "var(--background)" }}>
 
         {/* ── Player ── */}
         <section className="mx-auto w-full max-w-[1400px] px-0 sm:px-4 lg:px-6">
-          <div
-            className="overflow-hidden rounded-none sm:rounded-2xl"
-            style={{
-              boxShadow: "0 0 60px rgba(139,92,246,0.15), 0 24px 64px rgba(0,0,0,0.6)",
-              border: "1px solid rgba(139,92,246,0.1)",
-            }}
-          >
-            <WatchPlayer animeId={anime.id} episode={parsed.ep} animeTitle={title} coverImage={cover} />
-          </div>
+          <PlayerSection
+            animeId={anime.id}
+            episode={parsed.ep}
+            animeTitle={title}
+            coverImage={cover}
+            nextEpisodeUrl={nextEpisodeUrl}
+            initialPosition={initialPosition}
+          />
         </section>
 
         {/* ── Info bar ── */}
@@ -134,9 +164,15 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
               </span>
             </div>
 
-            <div className="flex gap-3 overflow-x-auto pb-6 pt-1 scrollbar-hide snap-x snap-mandatory [&::-webkit-scrollbar]:hidden">
+            <div className="flex gap-3 overflow-x-auto pb-6 pt-1 snap-x snap-mandatory">
               {sortedEpisodes.map((epStr) => {
                 const isActive = epStr === String(parsed.ep);
+                // Per-episode thumbnail from AniList, fallback to show cover
+                const epThumb = epThumbnailMap.get(epStr) ?? cover;
+                // Episode title from AniList streamingEpisodes if available
+                const epTitle = anime.streamingEpisodes?.find(
+                  (se) => se.title?.match(/episode\s+(\d+(?:\.\d+)?)/i)?.[1] === epStr
+                )?.title?.replace(/^episode\s+\d+(?:\.\d+)?\s*-?\s*/i, "") ?? "";
                 return (
                   <Link
                     key={epStr}
@@ -153,14 +189,14 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
                   >
                     {/* Thumbnail */}
                     <div className="relative aspect-video w-full" style={{ background: "var(--surface-soft)" }}>
-                      {cover ? (
+                      {epThumb ? (
                         <Image
-                          src={cover}
-                          alt=""
+                          src={epThumb}
+                          alt={`Episode ${epStr}`}
                           fill
                           sizes="260px"
                           className="object-cover transition duration-300 group-hover:scale-105"
-                          style={{ opacity: isActive ? 0.5 : 0.65, filter: "saturate(1.1)" }}
+                          style={{ opacity: isActive ? 0.5 : 0.75, filter: "saturate(1.1)" }}
                         />
                       ) : null}
                       <div className="absolute inset-0 bg-gradient-to-t from-[#06060f]/90 via-transparent to-transparent" />
@@ -207,7 +243,7 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
                         Episode {epStr}
                       </p>
                       <p className="mt-0.5 text-xs line-clamp-1" style={{ color: "rgba(255,255,255,0.3)" }}>
-                        {title}
+                        {epTitle || title}
                       </p>
                     </div>
                   </Link>

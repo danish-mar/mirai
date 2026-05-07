@@ -9,12 +9,22 @@ import type { AuthUser } from "@/lib/auth/jwt";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 
-export function Header({ user }: { user: AuthUser | null }) {
+export function Header({ user, avatarUrl }: { user: AuthUser | null; avatarUrl?: string | null }) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  const Avatar = ({ url, name, size = 32 }: { url?: string | null; name: string; size?: number }) => {
+    if (url) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt={name} className="h-full w-full object-cover" />
+      );
+    }
+    return <User className="size-4 text-white" />;
+  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -110,7 +120,7 @@ export function Header({ user }: { user: AuthUser | null }) {
                   aria-label="Profile menu"
                 >
                   {/* Avatar or initial */}
-                  <User className="size-4 text-white" />
+                  <Avatar url={avatarUrl} name={user.name} />
                 </motion.button>
 
                 <AnimatePresence>

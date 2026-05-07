@@ -65,6 +65,15 @@ function migrate(db: DatabaseInstance): void {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS stream_cache (
+      anime_id INTEGER NOT NULL,
+      episode TEXT NOT NULL,
+      mode TEXT NOT NULL,
+      sources_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (anime_id, episode, mode)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_watch_progress_user_updated ON watch_progress(user_id, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_watch_progress_user_anime ON watch_progress(user_id, anime_id);
     CREATE INDEX IF NOT EXISTS idx_watchlist_user ON watchlist(user_id);

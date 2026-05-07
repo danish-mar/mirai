@@ -1,11 +1,11 @@
 import { displayTitle, getAnimeById } from "@/lib/anilist";
-import { searchAnime, getEpisodeSources, getEpisodesList, findBestMatch } from "@/lib/allanime";
+import { searchAnime, getEpisodeSources, findBestMatch } from "@/lib/allanime";
 import { jsonError, jsonOk, errorMessage } from "@/lib/api/response";
 import { streamParamsSchema } from "@/lib/validators/anime";
+import { getCachedStream, setCachedStream, deleteCachedStream } from "@/lib/db/stream-cache";
 
 export const runtime = "nodejs";
 
-// Cache: AniList ID → allanime showId, in-process only
 const showIdCache = new Map<string, string>();
 
 async function resolveShowId(
@@ -16,7 +16,6 @@ async function resolveShowId(
   const cacheKey = `${anilistId}:${mode}`;
   if (showIdCache.has(cacheKey)) return showIdCache.get(cacheKey)!;
 
-  // Try mode first, fall back to sub
   for (const m of [mode, "sub" as const, "dub" as const]) {
     try {
       const results = await searchAnime(title, m);
@@ -40,30 +39,42 @@ export async function GET(
     const params = streamParamsSchema.parse(await context.params);
     const url = new URL(request.url);
     const mode = (url.searchParams.get("mode") ?? "sub") as "sub" | "dub" | "raw";
+    const refresh = url.searchParams.get("refresh") === "true";
 
-    // Fetch AniList metadata
+    const animeId = parseInt(params.id);
+
+    // 1. Check cache first (unless refresh requested)
+    if (!refresh) {
+      const cached = getCachedStream(animeId, params.ep, mode);
+      if (cached) {
+        const ageHours = (Date.now() - new Date(cached.createdAt).getTime()) / (1000 * 60 * 60);
+        if (ageHours < 8) {
+          return jsonOk({ sources: cached.sources, mode: cached.mode, cached: true });
+        }
+      }
+    } else {
+      deleteCachedStream(animeId, params.ep, mode);
+    }
+
+    // 2. Resolve fresh sources
     const anime = await getAnimeById(params.id);
     const title = displayTitle(anime);
 
-    // Resolve allanime show ID
     const showId = await resolveShowId(params.id, title, mode);
     if (!showId) {
       return jsonError(`Anime not found on streaming provider: ${title}`, 404);
     }
 
-    // The episode param is an allanime episode string (simple number like "1")
-    // Verify it exists in the episode list and try to resolve sources
     let sources = await getEpisodeSources(showId, params.ep, mode);
 
-    // If dub requested but no sources, try same showId with sub
     if (!sources.length && mode === "dub") {
       sources = await getEpisodeSources(showId, params.ep, "sub");
       if (sources.length) {
+        setCachedStream(animeId, params.ep, mode, sources); // Cache even if it's a fallback
         return jsonOk({ sources, mode: "sub", note: "Dub not available, showing sub" });
       }
     }
 
-    // If still nothing, try searching with mode "sub" and different showId
     if (!sources.length) {
       const subResults = await searchAnime(title, "sub");
       const subMatch = findBestMatch(subResults, title);
@@ -76,6 +87,8 @@ export async function GET(
       return jsonError(`No streams found for episode ${params.ep} (tried: ${mode})`, 404);
     }
 
+    // 3. Save to cache and return
+    setCachedStream(animeId, params.ep, mode, sources);
     return jsonOk({ sources, mode });
   } catch (error: unknown) {
     return jsonError(errorMessage(error), 502);
