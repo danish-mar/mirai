@@ -11,7 +11,40 @@ import { cookies } from "next/headers";
 import { verifyToken } from "@/lib/auth/jwt";
 import { getEpisodeProgress, getAnimeProgress } from "@/lib/db/progress";
 
+import { Metadata } from "next";
+
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string; ep: string }> }): Promise<Metadata> {
+  const parsed = streamParamsSchema.parse(await params);
+  const anime = await getAnimeById(parsed.id);
+  const title = displayTitle(anime);
+  
+  // Try to find episode thumbnail from AniList
+  const epThumbnail = anime.streamingEpisodes?.find(
+    (se) => se.title?.match(/episode\s+(\d+(?:\.\d+)?)/i)?.[1] === parsed.ep
+  )?.thumbnail ?? anime.coverImage.extraLarge ?? anime.coverImage.large;
+
+  const pageTitle = `Watching ${title} Ep ${parsed.ep} · Mirai`;
+  const description = `Stream ${title} Episode ${parsed.ep} on Mirai — your self-hosted anime platform.`;
+
+  return {
+    title: pageTitle,
+    description,
+    openGraph: {
+      title: pageTitle,
+      description,
+      images: epThumbnail ? [epThumbnail] : [],
+      type: "video.episode",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: pageTitle,
+      description,
+      images: epThumbnail ? [epThumbnail] : [],
+    },
+  };
+}
 
 export default async function WatchPage({ params }: { params: Promise<{ id: string; ep: string }> }) {
   const parsed = streamParamsSchema.parse(await params);

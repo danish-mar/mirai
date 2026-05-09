@@ -1,51 +1,10 @@
+import { getCachedData, setCachedData } from "@/lib/db/general-cache";
+import { Media, displayTitle, stripHtml } from "./anilist/shared";
+
+// Re-export shared for convenience in server components
+export * from "./anilist/shared";
+
 const ANILIST_URL = "https://graphql.anilist.co";
-
-export type MediaTitle = {
-  romaji: string | null;
-  english: string | null;
-  native: string | null;
-};
-
-export type MediaCoverImage = {
-  extraLarge: string | null;
-  large: string | null;
-  color: string | null;
-};
-
-export type MediaCharacter = {
-  id: number;
-  name: {
-    full: string | null;
-    native: string | null;
-  };
-  image: {
-    large: string | null;
-  };
-};
-
-export type MediaStreamingEpisode = {
-  title: string | null;
-  thumbnail: string | null;
-  url: string | null;
-};
-
-export type Media = {
-  id: number;
-  title: MediaTitle;
-  description: string | null;
-  bannerImage: string | null;
-  coverImage: MediaCoverImage;
-  episodes: number | null;
-  duration: number | null;
-  status: string | null;
-  genres: string[];
-  averageScore: number | null;
-  seasonYear: number | null;
-  streamingEpisodes?: MediaStreamingEpisode[];
-  characters?: {
-    nodes: MediaCharacter[];
-  };
-};
 
 type AniListError = {
   message: string;
@@ -108,6 +67,10 @@ const mediaFields = `
 `;
 
 export async function getTrendingAnime(page = 1, perPage = 18): Promise<Media[]> {
+  const cacheKey = `trending:${page}:${perPage}`;
+  const cached = getCachedData<Media[]>(cacheKey);
+  if (cached) return cached;
+
   const query = `
     query TrendingAnime($page: Int!, $perPage: Int!) {
       Page(page: $page, perPage: $perPage) {
@@ -119,10 +82,16 @@ export async function getTrendingAnime(page = 1, perPage = 18): Promise<Media[]>
   `;
 
   const result = await anilistFetch<{ Page: { media: Media[] } }>(query, { page, perPage });
-  return result.Page.media;
+  const media = result.Page.media;
+  setCachedData(cacheKey, media, 86400); // 24H cache
+  return media;
 }
 
 export async function getPopularAnime(page = 1, perPage = 24): Promise<Media[]> {
+  const cacheKey = `popular:${page}:${perPage}`;
+  const cached = getCachedData<Media[]>(cacheKey);
+  if (cached) return cached;
+
   const query = `
     query PopularAnime($page: Int!, $perPage: Int!) {
       Page(page: $page, perPage: $perPage) {
@@ -134,10 +103,16 @@ export async function getPopularAnime(page = 1, perPage = 24): Promise<Media[]> 
   `;
 
   const result = await anilistFetch<{ Page: { media: Media[] } }>(query, { page, perPage });
-  return result.Page.media;
+  const media = result.Page.media;
+  setCachedData(cacheKey, media, 86400); // 24H cache
+  return media;
 }
 
 export async function searchAnime(search: string, page = 1, perPage = 24): Promise<Media[]> {
+  const cacheKey = `search:${search.toLowerCase()}:${page}:${perPage}`;
+  const cached = getCachedData<Media[]>(cacheKey);
+  if (cached) return cached;
+
   const query = `
     query SearchAnime($search: String!, $page: Int!, $perPage: Int!) {
       Page(page: $page, perPage: $perPage) {
@@ -149,7 +124,9 @@ export async function searchAnime(search: string, page = 1, perPage = 24): Promi
   `;
 
   const result = await anilistFetch<{ Page: { media: Media[] } }>(query, { search, page, perPage });
-  return result.Page.media;
+  const media = result.Page.media;
+  setCachedData(cacheKey, media, 86400); // 24H cache
+  return media;
 }
 
 export async function getAnimeById(id: number): Promise<Media> {
@@ -181,16 +158,3 @@ export async function getAnimeById(id: number): Promise<Media> {
 
   return result.Media;
 }
-
-export function displayTitle(media: Pick<Media, "title">): string {
-  return media.title.english ?? media.title.romaji ?? media.title.native ?? "Untitled anime";
-}
-
-export function stripHtml(input: string | null): string {
-  if (!input) {
-    return "";
-  }
-
-  return input.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
-}
-

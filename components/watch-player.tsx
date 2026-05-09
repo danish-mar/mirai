@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Loader2, Languages, ExternalLink, Play,
-  RefreshCw, SkipForward, Maximize,
+  RefreshCw, SkipForward, Maximize, Settings2
 } from "lucide-react";
 
 type Source = { sourceName: string; sourceUrl: string };
 type Mode = "sub" | "dub";
+type QualityLevel = { id: number; label: string };
 
 interface SkipInterval {
   startTime: number;

@@ -1,4 +1,4 @@
-import type { Media } from "@/lib/anilist";
+import type { Media } from "@/lib/anilist/shared";
 import { AnimeCard } from "@/components/anime-card";
 
 export function AnimeGrid({ anime }: { anime: Media[] }) {

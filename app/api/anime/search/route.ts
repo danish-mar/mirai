@@ -9,7 +9,12 @@ export async function GET(request: NextRequest): Promise<Response> {
       q: request.nextUrl.searchParams.get("q") ?? ""
     });
     const anime = await searchAnime(input.q);
-    return jsonOk({ anime, query: input.q });
+    const response = jsonOk({ anime, query: input.q });
+    
+    // Cache search results in browser for 5 minutes
+    response.headers.set("Cache-Control", "public, max-age=300");
+    
+    return response;
   } catch (error: unknown) {
     return jsonError(errorMessage(error), 400);
   }

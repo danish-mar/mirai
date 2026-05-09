@@ -5,8 +5,8 @@ import { Search, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import type { Media } from "@/lib/anilist";
-import { displayTitle } from "@/lib/anilist";
+import type { Media } from "@/lib/anilist/shared";
+import { displayTitle } from "@/lib/anilist/shared";
 
 export function SearchBar() {
   const [query, setQuery] = useState("");

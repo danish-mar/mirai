@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { Media } from "@/lib/anilist";
-import { displayTitle } from "@/lib/anilist";
+import type { Media } from "@/lib/anilist/shared";
+import { displayTitle } from "@/lib/anilist/shared";
 import { Play } from "lucide-react";
 
 export function AnimeCard({ anime }: { anime: Media }) {

@@ -3,8 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Play, BookmarkPlus, ChevronRight } from "lucide-react";
-import type { Media } from "@/lib/anilist";
-import { displayTitle, stripHtml } from "@/lib/anilist";
+import type { Media } from "@/lib/anilist/shared";
+import { displayTitle, stripHtml } from "@/lib/anilist/shared";
 import { motion } from "framer-motion";
 
 export function Hero({ anime }: { anime: Media }) {

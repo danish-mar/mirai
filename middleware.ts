@@ -19,19 +19,32 @@ export function middleware(request: NextRequest) {
   const isPublicPath = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
   const session = request.cookies.get("mirai_session")?.value;
 
-  // Redirect unauthenticated users to login
-  if (!isPublicPath && !session) {
+  // ── Bot / Crawler Bypass ──
+  const userAgent = request.headers.get("user-agent") || "";
+  const isBot = /bot|crawler|spider|criteo|discord|twitter|whatsapp|slack|telegram|facebook|google/i.test(userAgent);
+
+  // Redirect unauthenticated users to login (unless they are a bot/crawler)
+  if (!isPublicPath && !session && !isBot) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect already-authenticated users away from login/setup
-  if (isPublicPath && session && pathname !== "/setup") {
-    return NextResponse.redirect(new URL("/", request.url));
+  const response = session && isPublicPath && pathname !== "/setup"
+    ? NextResponse.redirect(new URL("/", request.url))
+    : NextResponse.next();
+
+  // Add Cache-Control headers for specific public-facing routes
+  const CACHED_PATHS = ["/", "/trending", "/popular"];
+  if (CACHED_PATHS.includes(pathname)) {
+    // 1 hour browser cache, with 24 hours of background revalidation (SWR)
+    response.headers.set(
+      "Cache-Control",
+      "public, s-maxage=3600, stale-while-revalidate=86400"
+    );
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {

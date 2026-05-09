@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-05-09
+
+### Added
+- **24-Hour Caching**: Implemented a robust server-side database caching layer for Home, Trending, Popular, and Search results.
+- **Dynamic OG Tags**: Added Open Graph and Twitter Card support for all anime and watch pages, providing rich link previews.
+- **Bot Bypass**: Updated middleware to allow social media crawlers (Discord, Twitter, etc.) to access metadata without authentication.
+- **Share Button**: Integrated a new "Share" button with native Web Share API support and clipboard fallback.
+- **HLS Quality Selection**: Added a manual quality selection menu to the video player for HLS streams.
+
+### Fixed
+- **Server/Client Leak**: Resolved 'fs' module errors by refactoring AniList types into a shared utility file.
+- **Browser Caching**: Optimized page performance with 1-hour browser cache and 24-hour SWR headers.
+
 ## [0.2.0] - 2026-05-08
 
 ### Added

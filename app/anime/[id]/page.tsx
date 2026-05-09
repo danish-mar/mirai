@@ -3,11 +3,39 @@ import Link from "next/link";
 import { Play, Clock, Tv } from "lucide-react";
 import { MotionPage } from "@/components/motion-page";
 import { WatchlistButton } from "@/components/watchlist-button";
+import { ShareButton } from "@/components/share-button";
 import { displayTitle, getAnimeById, stripHtml } from "@/lib/anilist";
 import { searchAnime, getEpisodesList } from "@/lib/allanime";
 import { animeIdSchema } from "@/lib/validators/anime";
 
+import { Metadata } from "next";
+
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const parsed = animeIdSchema.parse(await params);
+  const anime = await getAnimeById(parsed.id);
+  const title = displayTitle(anime);
+  const description = stripHtml(anime.description || "").slice(0, 200);
+  const image = anime.bannerImage ?? anime.coverImage.extraLarge ?? anime.coverImage.large;
+
+  return {
+    title: `${title} · Mirai`,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: image ? [image] : [],
+      type: "video.tv_show",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: image ? [image] : [],
+    },
+  };
+}
 
 export default async function AnimeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const parsed = animeIdSchema.parse(await params);
@@ -146,6 +174,7 @@ export default async function AnimeDetailPage({ params }: { params: Promise<{ id
               </span>
             )}
             <WatchlistButton animeId={anime.id} title={title} coverImage={cover} />
+            <ShareButton title={title} />
           </div>
         </div>
       </section>

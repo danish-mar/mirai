@@ -75,6 +75,13 @@ function migrate(db: DatabaseInstance): void {
       PRIMARY KEY (anime_id, episode, mode)
     );
 
+    CREATE TABLE IF NOT EXISTS general_cache (
+      key TEXT PRIMARY KEY,
+      value_json TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE INDEX IF NOT EXISTS idx_watch_progress_user_updated ON watch_progress(user_id, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_watch_progress_user_anime ON watch_progress(user_id, anime_id);
     CREATE INDEX IF NOT EXISTS idx_watchlist_user ON watchlist(user_id);
