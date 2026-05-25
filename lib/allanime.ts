@@ -1,7 +1,8 @@
 import crypto from "crypto";
 
-const AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0";
-const REFR = "https://allmanga.to";
+// ── Updated to match ani-cli 4.14.1 ──────────────────────────────────────────
+const AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0";
+const REFR = "https://youtu-chan.com";
 const API_BASE = "https://api.allanime.day/api";
 
 const ALLANIME_KEY = crypto.createHash("sha256").update("Xot36i3lK3:v1").digest("hex");
@@ -27,7 +28,7 @@ export interface SourceUrl {
   sourceUrl: string;
 }
 
-// ── Custom hex map (identical to ani-cli and anime-mcp) ───────────────────────
+// ── Custom hex map ────────────────────────────────────────────────────────────
 const customHexMap: Record<string, string> = {
   "00": "8", "01": "9", "02": ":", "03": ";", "05": "=", "07": "?", "08": "0", "09": "1", "0a": "2", "0b": "3", "0c": "4", "0d": "5", "0e": "6", "0f": "7",
   "10": "(", "11": ")", "12": "*", "13": "+", "14": ",", "15": "-", "16": ".", "17": "/", "19": "!", "1b": "#", "1c": "$", "1d": "%", "1e": "&",
@@ -47,22 +48,31 @@ function decodeCustomHex(str: string): string {
   return res.replace(/\/clock/g, "/clock.json");
 }
 
+// ── NEW: Only decode if the sourceUrl starts with "--" (matches ani-cli 4.14.1) 
+// Non-encoded providers (mp4upload, direct URLs) pass through unchanged.
+function maybeDecodeCustomHex(str: string): string {
+  if (!str.startsWith("--")) return str;
+  return decodeCustomHex(str.slice(2));
+}
+
 // ── Decode tobeparsed blob ────────────────────────────────────────────────────
-// Returns raw hex-encoded strings (NOT yet decoded) as sourceUrl — same as anime-mcp
 function decodeTobeparsed(blob: string): SourceUrl[] {
   try {
     const buf = Buffer.from(blob, "base64");
     const iv = buf.subarray(1, 13);
     const ctr = Buffer.concat([iv, Buffer.from("00000002", "hex")]);
-    const ct = buf.subarray(13);
+    const ct = buf.subarray(13, buf.length - 16);
     const decipher = crypto.createDecipheriv("aes-256-ctr", Buffer.from(ALLANIME_KEY, "hex"), ctr);
     const text = Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
 
+    const json = JSON.parse(text);
+    const sourceUrls = json.episode?.sourceUrls || json.sourceUrls || [];
+    
     const results: SourceUrl[] = [];
-    const regex = /"sourceUrl":"--([^"]*)".*?"sourceName":"([^"]*)"/g;
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      results.push({ sourceUrl: match[1], sourceName: match[2] });
+    for (const src of sourceUrls) {
+      if (!src.sourceUrl) continue;
+      const rawUrl = src.sourceUrl.startsWith("--") ? src.sourceUrl.slice(2) : src.sourceUrl;
+      results.push({ sourceUrl: rawUrl, sourceName: src.sourceName ?? "Unknown" });
     }
     return results;
   } catch (e) {
@@ -85,6 +95,66 @@ async function safeFetch(url: string, init: RequestInit, ms = 10000): Promise<Re
   }
 }
 
+// ── Resolve a single provider source to a playable URL ───────────────────────
+// Handles: wixmp (clock.json), mp4upload (HTML scrape), direct URLs (yt/sharepoint)
+async function resolveSource(src: SourceUrl): Promise<SourceUrl[]> {
+  const decodedPath = maybeDecodeCustomHex(src.sourceUrl);
+
+  // Already a full URL (e.g. Yt-mp4 / tools.fast4speed.rsvp / sharepoint)
+  const fetchUrl = decodedPath.startsWith("http")
+    ? decodedPath
+    : `https://allanime.day${decodedPath}`;
+
+  // ── mp4upload: scrape HTML for `src: "..."` ───────────────────────────────
+  // Added in ani-cli 4.14.1 as provider 4
+  if (fetchUrl.includes("mp4upload")) {
+    const res = await safeFetch(fetchUrl, {
+      headers: { "User-Agent": AGENT, "Referer": "https://www.mp4upload.com" },
+    }, 8000);
+    if (!res?.ok) return [];
+    const html = await res.text();
+    const match = html.match(/src:\s*"([^"]+)"/);
+    if (match) {
+      return [{ sourceName: src.sourceName, sourceUrl: match[1] }];
+    }
+    return [];
+  }
+
+  // ── tools.fast4speed.rsvp (Yt provider): use URL directly ─────────────────
+  if (fetchUrl.includes("tools.fast4speed.rsvp")) {
+    return [{ sourceName: src.sourceName, sourceUrl: fetchUrl }];
+  }
+
+  // ── wixmp / allanime CDN: fetch clock.json and extract links ──────────────
+  const res = await safeFetch(fetchUrl, {
+    headers: { "User-Agent": AGENT, "Referer": REFR },
+  }, 5000);
+
+  if (!res?.ok) return [];
+
+  // Direct video stream (content-type video/* or octet-stream)
+  const contentType = res.headers.get("content-type") ?? "";
+  if (contentType.includes("video") || contentType.includes("octet-stream")) {
+    return [{ sourceName: src.sourceName, sourceUrl: fetchUrl }];
+  }
+
+  try {
+    const data = await res.json() as any;
+    const links: SourceUrl[] = [];
+    for (const link of data?.links ?? []) {
+      if (link.link && typeof link.link === "string") {
+        links.push({
+          sourceName: `${src.sourceName} (${link.resolutionStr ?? "?"})`,
+          sourceUrl: link.link,
+        });
+      }
+    }
+    return links;
+  } catch {
+    return [];
+  }
+}
+
 // ── Search ────────────────────────────────────────────────────────────────────
 export async function searchAnime(query: string, mode: "sub" | "dub" | "raw" = "sub"): Promise<SearchResult[]> {
   const gql = `query( $search: SearchInput $limit: Int $page: Int $translationType: VaildTranslationTypeEnumType $countryOrigin: VaildCountryOriginEnumType ) { shows( search: $search limit: $limit page: $page translationType: $translationType countryOrigin: $countryOrigin ) { edges { _id name availableEpisodes thumbnail __typename } }}`;
@@ -95,7 +165,12 @@ export async function searchAnime(query: string, mode: "sub" | "dub" | "raw" = "
 
   const res = await safeFetch(API_BASE, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "User-Agent": AGENT, "Referer": REFR },
+    headers: {
+      "Content-Type": "application/json",
+      "User-Agent": AGENT,
+      "Referer": REFR,
+      "Origin": REFR,
+    },
     body: JSON.stringify({ variables: vars, query: gql }),
   }, 12000);
 
@@ -117,7 +192,12 @@ export async function getEpisodesList(showId: string): Promise<EpisodeDetail> {
 
   const res = await safeFetch(API_BASE, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "User-Agent": AGENT, "Referer": REFR },
+    headers: {
+      "Content-Type": "application/json",
+      "User-Agent": AGENT,
+      "Referer": REFR,
+      "Origin": REFR,
+    },
     body: JSON.stringify({ variables: { showId }, query: gql }),
   }, 10000);
 
@@ -136,14 +216,18 @@ export async function getEpisodeSources(
   const vars = JSON.stringify({ showId, translationType: mode, episodeString });
   const ext = JSON.stringify({ persistedQuery: { version: 1, sha256Hash: queryHash } });
 
-  const encodedVars = vars.replace(/"/g, "%22").replace(/:/g, "%3A").replace(/{/g, "%7B").replace(/}/g, "%7D").replace(/,/g, "%2C");
-  const encodedExt = ext.replace(/"/g, "%22").replace(/:/g, "%3A").replace(/{/g, "%7B").replace(/}/g, "%7D").replace(/,/g, "%2C").replace(/ /g, "%20");
+  // ani-cli 4.14.1 uses --data-urlencode (proper percent-encoding) for the GET request
+  const params = new URLSearchParams({ variables: vars, extensions: ext });
 
-  // Step 1: GET with persisted query (primary)
+  // Step 1: GET with persisted query (primary) — both Referer and Origin are now youtu-chan.com
   let rawStr = "";
-  const getRes = await safeFetch(`${API_BASE}?variables=${encodedVars}&extensions=${encodedExt}`, {
+  const getRes = await safeFetch(`${API_BASE}?${params.toString()}`, {
     method: "GET",
-    headers: { "User-Agent": AGENT, "Referer": "https://youtu-chan.com", "Origin": "https://youtu-chan.com" },
+    headers: {
+      "User-Agent": AGENT,
+      "Referer": REFR,
+      "Origin": REFR,
+    },
   }, 10000);
 
   if (getRes?.ok) {
@@ -152,11 +236,16 @@ export async function getEpisodeSources(
   }
 
   // Step 2: POST fallback
-  if (!rawStr || !rawStr.includes("tobeparsed")) {
+  if (!rawStr || (!rawStr.includes("sourceUrl") && !rawStr.includes("tobeparsed"))) {
     const gql = `query ($showId: String!, $translationType: VaildTranslationTypeEnumType!, $episodeString: String!) { episode( showId: $showId translationType: $translationType episodeString: $episodeString ) { episodeString sourceUrls }}`;
     const postRes = await safeFetch(API_BASE, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "User-Agent": AGENT, "Referer": REFR },
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": AGENT,
+        "Referer": REFR,
+        "Origin": REFR,
+      },
       body: JSON.stringify({ variables: { showId, translationType: mode, episodeString }, query: gql }),
     }, 10000);
     if (postRes?.ok) {
@@ -165,76 +254,47 @@ export async function getEpisodeSources(
     }
   }
 
-  // Step 3: Extract source entries (raw hex strings from tobeparsed)
+  if (!rawStr) return [];
+
+  // Step 3: Extract source entries
   const sources: SourceUrl[] = [];
-  const tobeparsedMatch = rawStr.match(/"tobeparsed":"([^"]+)"/);
-  if (tobeparsedMatch) {
-    sources.push(...decodeTobeparsed(tobeparsedMatch[1]));
-  } else {
-    const regex = /"sourceUrl":"(?:--)?([^"]*)".*?"sourceName":"([^"]*)"/g;
-    let match;
-    while ((match = regex.exec(rawStr)) !== null) {
-      sources.push({ sourceUrl: match[1], sourceName: match[2] });
+  
+  try {
+    const data = JSON.parse(rawStr);
+    if (data?.data?.tobeparsed) {
+      sources.push(...decodeTobeparsed(data.data.tobeparsed));
+    } else if (data?.data?.episode?.sourceUrls) {
+      for (const src of data.data.episode.sourceUrls) {
+        if (!src.sourceUrl) continue;
+        const rawUrl = src.sourceUrl.startsWith("--") ? src.sourceUrl.slice(2) : src.sourceUrl;
+        sources.push({ sourceUrl: rawUrl, sourceName: src.sourceName ?? "Unknown" });
+      }
     }
+  } catch (e) {
+    console.error("Failed to parse rawStr as JSON:", e);
   }
 
-  if (sources.length === 0) return [];
+  if (sources.length === 0) {
+    return [];
+  }
 
-  // Step 4: Resolve each hex-encoded source to actual playable URL
-  // anime-mcp pattern: decode hex → build URL → fetch clock.json → extract link.link
-  // FIX: if decoded path is already a full URL (e.g. Yt-mp4 / tools.fast4speed.rsvp),
-  //      use it directly without prepending the allanime base domain.
-  const resolvedSources: SourceUrl[] = [];
-
+  // Step 4: Resolve all sources in parallel (provider-aware)
+  const resolved: SourceUrl[] = [];
   await Promise.allSettled(
     sources.map(async (src) => {
-      try {
-        const decodedPath = decodeCustomHex(src.sourceUrl);
-
-        // If the decoded result is already a full URL, use it directly
-        const fetchUrl = decodedPath.startsWith("http")
-          ? decodedPath
-          : `https://allanime.day${decodedPath}`;
-
-        const res = await safeFetch(fetchUrl, {
-          headers: { "User-Agent": AGENT, "Referer": REFR },
-        }, 5000);
-
-        if (!res?.ok) return;
-
-        // For direct MP4/HLS sources (like tools.fast4speed.rsvp), the response IS the video
-        const contentType = res.headers.get("content-type") ?? "";
-        if (contentType.includes("video") || contentType.includes("octet-stream")) {
-          // It's a direct video stream — use the URL itself
-          resolvedSources.push({ sourceName: src.sourceName, sourceUrl: fetchUrl });
-          return;
-        }
-
-        const data = await res.json() as any;
-        const links = data?.links ?? [];
-        for (const link of links) {
-          if (link.link && typeof link.link === "string") {
-            resolvedSources.push({
-              sourceName: `${src.sourceName} (${link.resolutionStr ?? "?"})`,
-              sourceUrl: link.link,
-            });
-          }
-        }
-      } catch {
-        // ignore per-provider failures
-      }
+      const links = await resolveSource(src);
+      resolved.push(...links);
     }),
   );
 
-  // Return resolved if any, else fall back to decoded paths (same as anime-mcp)
-  if (resolvedSources.length > 0) return resolvedSources;
+  if (resolved.length > 0) return resolved;
 
-  // Fallback: return decoded paths as-is (for direct-URL providers like Yt-mp4)
+  // Fallback: return decoded paths for any direct-URL providers
   return sources
-    .map((src) => {
-      const decoded = decodeCustomHex(src.sourceUrl);
-      return { sourceName: src.sourceName, sourceUrl: decoded };
-    })
+    .map((src) => ({
+      sourceName: src.sourceName,
+      sourceUrl: maybeDecodeCustomHex(src.sourceUrl),
+    }))
     .filter((src) => src.sourceUrl.startsWith("http"));
 }
 

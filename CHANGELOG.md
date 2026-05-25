@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-05-25
+
+### Changed
+- **AllAnime Provider**: Refactored source fetching logic to use native `URLSearchParams`, improved JSON parsing, and added `Origin` headers for better reliability.
+- **AllAnime Provider**: Source resolution is now executed in parallel for faster loading times.
+- **Dependencies**: Upgraded `better-sqlite3` from 11.9.1 to 12.10.0.
+
 ## [0.2.1] - 2026-05-09
 
 ### Added
