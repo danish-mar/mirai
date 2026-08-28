@@ -22,6 +22,10 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# lib/anidb.ts shells out to curl for anidb.app requests — Node's own fetch()
+# gets served a Cloudflare JS challenge from inside a container, curl doesn't.
+RUN apk add --no-cache curl
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 

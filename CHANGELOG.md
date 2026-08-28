@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2026-08-29
+
+### Fixed
+- **Provider Requests Blocked in Docker**: anidb.app's Cloudflare bot management was fingerprinting the TCP/TLS handshake of Node's built-in `fetch()` (undici) specifically when run inside a container, serving a "Just a moment..." JS challenge and causing every search/episode/source request to fail with HTTP 403 in production — even though the exact same requests worked fine outside a container, on the same host/IP, regardless of Node version or base image. `lib/anidb.ts` now shells out to `curl` for all anidb.app requests instead (the same evasion ani-cli itself relies on), which reproducibly passes the challenge. Added `curl` to the production Docker image (`Dockerfile`), since Alpine doesn't ship it by default.
+
 ## [0.2.4] - 2026-08-29
 
 ### Fixed
