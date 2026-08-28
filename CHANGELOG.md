@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-08-29
+
+### Changed
+- **Streaming Provider Migration**: Replaced the AllAnime provider (`allanime.day`), which is now gated behind a CAPTCHA challenge upstream, with a new `anidb.app`-based provider (`lib/anidb.ts`), mirroring the switch made by ani-cli 5.0.x. Source resolution now scrapes anidb's search page, episode API, and HLS embed/playlist chain directly instead of the old AllAnime GraphQL API.
+
+### Fixed
+- **Playback CORS Errors**: The `/api/proxy` route now rewrites HLS playlist contents so segment URLs are also routed through the proxy, fixing `fragLoadError`/CORS failures caused by the new provider's CDN not sending `Access-Control-Allow-Origin` on segment responses.
+- **First-Run Setup Flow**: `/login` now checks for zero registered users server-side and redirects to `/setup`, so wiping the database (or a fresh install) correctly prompts for initial admin creation instead of showing a login form with no accounts to log into.
+
 ## [0.2.2] - 2026-05-25
 
 ### Changed

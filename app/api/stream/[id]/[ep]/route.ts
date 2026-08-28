@@ -1,5 +1,5 @@
 import { displayTitle, getAnimeById } from "@/lib/anilist";
-import { searchAnime, getEpisodeSources, findBestMatch } from "@/lib/allanime";
+import { searchAnime, getEpisodeSources, findBestMatch } from "@/lib/anidb";
 import { jsonError, jsonOk, errorMessage } from "@/lib/api/response";
 import { streamParamsSchema } from "@/lib/validators/anime";
 import { getCachedStream, setCachedStream, deleteCachedStream } from "@/lib/db/stream-cache";

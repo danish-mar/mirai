@@ -4,7 +4,7 @@ import { ChevronLeft, Play, ChevronRight, CheckCircle2 } from "lucide-react";
 import { MotionPage } from "@/components/motion-page";
 import { PlayerSection } from "./player-section";
 import { displayTitle, getAnimeById, stripHtml } from "@/lib/anilist";
-import { searchAnime, getEpisodesList, findBestMatch } from "@/lib/allanime";
+import { searchAnime, getEpisodesList, findBestMatch } from "@/lib/anidb";
 import { streamParamsSchema } from "@/lib/validators/anime";
 
 import { cookies } from "next/headers";

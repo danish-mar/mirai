@@ -1,5 +1,5 @@
 import { displayTitle, getAnimeById } from "@/lib/anilist";
-import { searchAnime, getEpisodesList } from "@/lib/allanime";
+import { searchAnime, getEpisodesList } from "@/lib/anidb";
 import { jsonError, jsonOk, errorMessage } from "@/lib/api/response";
 import { animeIdSchema } from "@/lib/validators/anime";
 

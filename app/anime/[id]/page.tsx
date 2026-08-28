@@ -5,7 +5,7 @@ import { MotionPage } from "@/components/motion-page";
 import { WatchlistButton } from "@/components/watchlist-button";
 import { ShareButton } from "@/components/share-button";
 import { displayTitle, getAnimeById, stripHtml } from "@/lib/anilist";
-import { searchAnime, getEpisodesList } from "@/lib/allanime";
+import { searchAnime, getEpisodesList } from "@/lib/anidb";
 import { animeIdSchema } from "@/lib/validators/anime";
 
 import { Metadata } from "next";

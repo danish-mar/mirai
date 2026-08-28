@@ -1,4 +1,4 @@
-import { searchAnime, getEpisodeSources } from "./lib/allanime";
+import { searchAnime, getEpisodeSources } from "./lib/anidb";
 
 async function testHls() {
   console.log("🔍 Searching for 'One Piece'...");
