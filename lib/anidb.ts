@@ -47,8 +47,9 @@ async function safeFetch(url: string, init: RequestInit = {}, ms = 10000): Promi
     });
     clearTimeout(timeoutId);
     return res;
-  } catch {
+  } catch (e) {
     clearTimeout(timeoutId);
+    console.error(`[anidb] fetch failed for ${url}:`, e instanceof Error ? e.message : e);
     return null;
   }
 }
@@ -56,7 +57,13 @@ async function safeFetch(url: string, init: RequestInit = {}, ms = 10000): Promi
 // ── Search ────────────────────────────────────────────────────────────────────
 export async function searchAnime(query: string, _mode: "sub" | "dub" | "raw" = "sub"): Promise<SearchResult[]> {
   const res = await safeFetch(`${BASE}/browse?${new URLSearchParams({ q: query })}`, {}, 12000);
-  if (!res?.ok) throw new Error("Failed to search anime from provider.");
+  if (!res?.ok) {
+    if (res) {
+      const body = await res.text().catch(() => "");
+      console.error(`[anidb] search failed: HTTP ${res.status} ${res.statusText} — ${body.slice(0, 300).replace(/\s+/g, " ")}`);
+    }
+    throw new Error(`Failed to search anime from provider${res ? ` (HTTP ${res.status})` : " (network error)"}.`);
+  }
   const html = await res.text();
 
   const results: SearchResult[] = [];
